@@ -1,6 +1,5 @@
-
 import React, { useState, useRef, useCallback } from 'react';
-import { Camera, Upload, Scan, CheckCircle, AlertCircle } from 'lucide-react';
+import { Camera, Upload, Scan, CheckCircle, AlertCircle, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
@@ -20,13 +19,47 @@ const OCRScanner = () => {
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [ocrProgress, setOcrProgress] = useState(0);
+  const [extractedText, setExtractedText] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Extract what3words addresses from text using regex
+  // Extract what3words addresses from text using multiple regex patterns
   const extractWhat3Words = (text: string): string[] => {
-    const what3wordsRegex = /\/{3}([a-z]+\.){2}[a-z]+/gi;
-    const matches = text.match(what3wordsRegex);
-    return matches || [];
+    console.log('Analyzing text for what3words addresses:', text);
+    
+    // Multiple patterns to catch different variations
+    const patterns = [
+      /\/{3}([a-z]+\.){2}[a-z]+/gi,           // Standard: ///word.word.word
+      /\/\/\/([a-z]+\.){2}[a-z]+/gi,         // Alternative slashes
+      /([a-z]+\.){2}[a-z]+/gi,               // Without slashes: word.word.word
+      /\b([a-z]{3,}\.[a-z]{3,}\.[a-z]{3,})\b/gi, // At least 3 chars per word
+    ];
+    
+    let matches: string[] = [];
+    
+    patterns.forEach((pattern, index) => {
+      const found = text.match(pattern);
+      if (found) {
+        console.log(`Pattern ${index + 1} found:`, found);
+        // Normalize found addresses to standard format
+        const normalized = found.map(addr => {
+          if (!addr.startsWith('///')) {
+            return '///' + addr.replace(/^\/+/, '');
+          }
+          return addr;
+        });
+        matches.push(...normalized);
+      }
+    });
+    
+    // Remove duplicates and filter valid formats
+    const unique = [...new Set(matches)];
+    const valid = unique.filter(addr => {
+      const parts = addr.replace(/^\/+/, '').split('.');
+      return parts.length === 3 && parts.every(part => part.length >= 2);
+    });
+    
+    console.log('Valid what3words addresses found:', valid);
+    return valid;
   };
 
   // Convert what3words to coordinates (using mock data for now - in real app would use what3words API)
@@ -58,12 +91,13 @@ const OCRScanner = () => {
         }
       ).then(async ({ data }) => {
         console.log('OCR Text detected:', data.text);
+        setExtractedText(data.text);
         
         const what3wordsAddresses = extractWhat3Words(data.text);
         console.log('what3words addresses found:', what3wordsAddresses);
         
         if (what3wordsAddresses.length === 0) {
-          throw new Error('No what3words addresses found in image');
+          throw new Error(`No what3words addresses found. Extracted text: "${data.text.substring(0, 100)}..."`);
         }
         
         // Use the first detected address
@@ -95,6 +129,7 @@ const OCRScanner = () => {
       setIsScanning(true);
       setScanResult(null);
       setOcrProgress(0);
+      setExtractedText('');
 
       try {
         const result = await processOCR(imageData);
@@ -149,6 +184,7 @@ const OCRScanner = () => {
       toast.success('Added to delivery list');
       setScanResult(null);
       setPreviewImage(null);
+      setExtractedText('');
     }
   };
 
@@ -191,6 +227,24 @@ const OCRScanner = () => {
             alt="Uploaded for OCR"
             className="w-full h-48 object-cover rounded-lg"
           />
+        </Card>
+      )}
+
+      {/* Extracted Text Display */}
+      {extractedText && !isScanning && !scanResult && (
+        <Card className="p-4 bg-yellow-50 border-yellow-200">
+          <div className="flex items-start space-x-3">
+            <Info className="h-5 w-5 text-yellow-600 mt-0.5" />
+            <div>
+              <h4 className="font-medium text-yellow-800 mb-2">Extracted Text</h4>
+              <p className="text-sm text-yellow-700 bg-white p-2 rounded border">
+                "{extractedText}"
+              </p>
+              <p className="text-xs text-yellow-600 mt-2">
+                No what3words addresses found in this format: ///word.word.word
+              </p>
+            </div>
+          </div>
         </Card>
       )}
 
@@ -257,12 +311,13 @@ const OCRScanner = () => {
         <div className="flex items-start space-x-3">
           <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
           <div className="text-sm text-blue-800">
-            <p className="font-medium mb-1">OCR Instructions</p>
+            <p className="font-medium mb-1">OCR Tips for Better Recognition</p>
             <ul className="space-y-1 text-blue-700">
-              <li>• Ensure what3words addresses are clearly visible</li>
-              <li>• Use good lighting and minimal blur</li>
-              <li>• Addresses should be in format: ///word.word.word</li>
-              <li>• The OCR will now actually read text from your images</li>
+              <li>• Ensure what3words addresses are in format: ///word.word.word</li>
+              <li>• Use good lighting and avoid blur or shadows</li>
+              <li>• Make sure text is clearly visible and not too small</li>
+              <li>• Avoid handwritten text - printed text works better</li>
+              <li>• Try different angles if recognition fails</li>
             </ul>
           </div>
         </div>
