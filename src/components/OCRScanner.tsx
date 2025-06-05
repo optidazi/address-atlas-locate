@@ -1,8 +1,10 @@
+
 import React, { useState, useRef, useCallback } from 'react';
 import { Camera, Upload, Scan, CheckCircle, AlertCircle, Info, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
+import { useLanguage } from '../contexts/LanguageContext';
 import Tesseract from 'tesseract.js';
 
 interface ScanResult {
@@ -15,6 +17,7 @@ interface ScanResult {
 }
 
 const OCRScanner = () => {
+  const { t } = useLanguage();
   const [isScanning, setIsScanning] = useState(false);
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -25,9 +28,9 @@ const OCRScanner = () => {
 
   // Language options for OCR
   const languageOptions = [
-    { code: 'eng', name: 'English' },
-    { code: 'mon', name: 'Mongolian Cyrillic' },
-    { code: 'eng+mon', name: 'English + Mongolian' },
+    { code: 'eng', name: t('lang.english') },
+    { code: 'mon', name: t('lang.mongolianCyrillic') },
+    { code: 'eng+mon', name: t('lang.englishMongolian') },
   ];
 
   // Extract what3words addresses from text using multiple regex patterns
@@ -127,7 +130,7 @@ const OCRScanner = () => {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      toast.error('Please select an image file');
+      toast.error(t('toast.selectImage'));
       return;
     }
 
@@ -143,9 +146,9 @@ const OCRScanner = () => {
       try {
         const result = await processOCR(imageData);
         setScanResult(result);
-        toast.success(`what3words address detected: ${result.address}`);
+        toast.success(`${t('toast.addressDetected')}: ${result.address}`);
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to process image';
+        const errorMessage = error instanceof Error ? error.message : t('toast.processingFailed');
         toast.error(errorMessage);
         console.error('OCR processing error:', error);
       } finally {
@@ -157,7 +160,7 @@ const OCRScanner = () => {
   };
 
   const handleCameraCapture = () => {
-    toast.info('Camera feature would open here in a real implementation');
+    toast.info(t('toast.cameraInfo'));
     
     // Simulate camera capture for demo
     setIsScanning(true);
@@ -170,9 +173,9 @@ const OCRScanner = () => {
           confidence: 0.88,
         };
         setScanResult(result);
-        toast.success(`what3words address detected: ${result.address}`);
+        toast.success(`${t('toast.addressDetected')}: ${result.address}`);
       } catch (error) {
-        toast.error('Failed to process camera image');
+        toast.error(t('toast.processingFailed'));
       } finally {
         setIsScanning(false);
       }
@@ -190,11 +193,51 @@ const OCRScanner = () => {
           addedAt: new Date().toISOString(),
         }
       }));
-      toast.success('Added to delivery list');
+      toast.success(t('toast.addedToDelivery'));
       setScanResult(null);
       setPreviewImage(null);
       setExtractedText('');
     }
+  };
+
+  // Extract what3words addresses from text using multiple regex patterns
+  const extractWhat3Words = (text: string): string[] => {
+    console.log('Analyzing text for what3words addresses:', text);
+    
+    // Multiple patterns to catch different variations
+    const patterns = [
+      /\/{3}([a-z]+\.){2}[a-z]+/gi,           // Standard: ///word.word.word
+      /\/\/\/([a-z]+\.){2}[a-z]+/gi,         // Alternative slashes
+      /([a-z]+\.){2}[a-z]+/gi,               // Without slashes: word.word.word
+      /\b([a-z]{3,}\.[a-z]{3,}\.[a-z]{3,})\b/gi, // At least 3 chars per word
+    ];
+    
+    let matches: string[] = [];
+    
+    patterns.forEach((pattern, index) => {
+      const found = text.match(pattern);
+      if (found) {
+        console.log(`Pattern ${index + 1} found:`, found);
+        // Normalize found addresses to standard format
+        const normalized = found.map(addr => {
+          if (!addr.startsWith('///')) {
+            return '///' + addr.replace(/^\/+/, '');
+          }
+          return addr;
+        });
+        matches.push(...normalized);
+      }
+    });
+    
+    // Remove duplicates and filter valid formats
+    const unique = [...new Set(matches)];
+    const valid = unique.filter(addr => {
+      const parts = addr.replace(/^\/+/, '').split('.');
+      return parts.length === 3 && parts.every(part => part.length >= 2);
+    });
+    
+    console.log('Valid what3words addresses found:', valid);
+    return valid;
   };
 
   return (
@@ -203,7 +246,7 @@ const OCRScanner = () => {
       <Card className="p-4">
         <div className="flex items-center space-x-3 mb-3">
           <Globe className="h-5 w-5 text-blue-600" />
-          <h4 className="font-medium text-gray-900">OCR Language</h4>
+          <h4 className="font-medium text-gray-900">{t('ocr.language')}</h4>
         </div>
         <select
           value={selectedLanguage}
@@ -218,7 +261,7 @@ const OCRScanner = () => {
           ))}
         </select>
         <p className="text-xs text-gray-500 mt-2">
-          Select the language for text recognition. Mongolian Cyrillic is supported for what3words addresses.
+          {t('ocr.languageHelp')}
         </p>
       </Card>
 
@@ -231,7 +274,7 @@ const OCRScanner = () => {
           disabled={isScanning}
         >
           <Upload className="h-4 w-4" />
-          <span>Upload Image</span>
+          <span>{t('ocr.uploadImage')}</span>
         </Button>
         <Button
           onClick={handleCameraCapture}
@@ -239,7 +282,7 @@ const OCRScanner = () => {
           disabled={isScanning}
         >
           <Camera className="h-4 w-4" />
-          <span>Use Camera</span>
+          <span>{t('ocr.useCamera')}</span>
         </Button>
       </div>
 
@@ -268,12 +311,12 @@ const OCRScanner = () => {
           <div className="flex items-start space-x-3">
             <Info className="h-5 w-5 text-yellow-600 mt-0.5" />
             <div>
-              <h4 className="font-medium text-yellow-800 mb-2">Extracted Text</h4>
+              <h4 className="font-medium text-yellow-800 mb-2">{t('ocr.extractedText')}</h4>
               <p className="text-sm text-yellow-700 bg-white p-2 rounded border">
                 "{extractedText}"
               </p>
               <p className="text-xs text-yellow-600 mt-2">
-                No what3words addresses found in this format: ///word.word.word
+                {t('ocr.noAddressFound')}
               </p>
             </div>
           </div>
@@ -286,9 +329,9 @@ const OCRScanner = () => {
           <div className="flex items-center justify-center space-x-3">
             <Scan className="h-6 w-6 text-blue-600 animate-spin" />
             <div>
-              <p className="font-medium text-gray-900">Processing Image...</p>
+              <p className="font-medium text-gray-900">{t('ocr.processing')}</p>
               <p className="text-sm text-gray-600">
-                {ocrProgress > 0 ? `Recognizing text: ${ocrProgress}%` : 'Scanning for what3words addresses'}
+                {ocrProgress > 0 ? `${t('ocr.recognizing')}: ${ocrProgress}%` : t('ocr.scanning')}
               </p>
             </div>
           </div>
@@ -307,22 +350,22 @@ const OCRScanner = () => {
           <div className="flex items-start space-x-3">
             <CheckCircle className="h-6 w-6 text-green-600 mt-1" />
             <div className="flex-1">
-              <h3 className="font-semibold text-gray-900 mb-2">Address Detected</h3>
+              <h3 className="font-semibold text-gray-900 mb-2">{t('ocr.addressDetected')}</h3>
               <div className="space-y-2 text-sm">
                 <div>
-                  <span className="font-medium text-gray-700">what3words:</span>
+                  <span className="font-medium text-gray-700">{t('ocr.what3words')}</span>
                   <span className="ml-2 font-mono bg-white px-2 py-1 rounded text-blue-600">
                     {scanResult.address}
                   </span>
                 </div>
                 <div>
-                  <span className="font-medium text-gray-700">Coordinates:</span>
+                  <span className="font-medium text-gray-700">{t('ocr.coordinates')}</span>
                   <span className="ml-2 text-gray-600">
                     {scanResult.coordinates.lat.toFixed(6)}, {scanResult.coordinates.lng.toFixed(6)}
                   </span>
                 </div>
                 <div>
-                  <span className="font-medium text-gray-700">Confidence:</span>
+                  <span className="font-medium text-gray-700">{t('ocr.confidence')}</span>
                   <span className="ml-2 text-gray-600">{(scanResult.confidence * 100).toFixed(1)}%</span>
                 </div>
               </div>
@@ -331,7 +374,7 @@ const OCRScanner = () => {
                 className="mt-4 w-full"
                 size="sm"
               >
-                Add to Delivery List
+                {t('ocr.addToDelivery')}
               </Button>
             </div>
           </div>
@@ -343,14 +386,14 @@ const OCRScanner = () => {
         <div className="flex items-start space-x-3">
           <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
           <div className="text-sm text-blue-800">
-            <p className="font-medium mb-1">OCR Tips for Better Recognition</p>
+            <p className="font-medium mb-1">{t('tips.title')}</p>
             <ul className="space-y-1 text-blue-700">
-              <li>• Ensure what3words addresses are in format: ///word.word.word</li>
-              <li>• Select appropriate language: English, Mongolian Cyrillic, or both</li>
-              <li>• Use good lighting and avoid blur or shadows</li>
-              <li>• Make sure text is clearly visible and not too small</li>
-              <li>• Avoid handwritten text - printed text works better</li>
-              <li>• Try different angles if recognition fails</li>
+              <li>• {t('tips.format')}</li>
+              <li>• {t('tips.language')}</li>
+              <li>• {t('tips.lighting')}</li>
+              <li>• {t('tips.visibility')}</li>
+              <li>• {t('tips.printed')}</li>
+              <li>• {t('tips.angles')}</li>
             </ul>
           </div>
         </div>
