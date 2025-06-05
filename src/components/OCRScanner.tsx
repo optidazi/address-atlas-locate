@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useCallback } from 'react';
 import { Camera, Upload, Scan, CheckCircle, AlertCircle, Info, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -198,46 +197,6 @@ const OCRScanner = () => {
       setPreviewImage(null);
       setExtractedText('');
     }
-  };
-
-  // Extract what3words addresses from text using multiple regex patterns
-  const extractWhat3Words = (text: string): string[] => {
-    console.log('Analyzing text for what3words addresses:', text);
-    
-    // Multiple patterns to catch different variations
-    const patterns = [
-      /\/{3}([a-z]+\.){2}[a-z]+/gi,           // Standard: ///word.word.word
-      /\/\/\/([a-z]+\.){2}[a-z]+/gi,         // Alternative slashes
-      /([a-z]+\.){2}[a-z]+/gi,               // Without slashes: word.word.word
-      /\b([a-z]{3,}\.[a-z]{3,}\.[a-z]{3,})\b/gi, // At least 3 chars per word
-    ];
-    
-    let matches: string[] = [];
-    
-    patterns.forEach((pattern, index) => {
-      const found = text.match(pattern);
-      if (found) {
-        console.log(`Pattern ${index + 1} found:`, found);
-        // Normalize found addresses to standard format
-        const normalized = found.map(addr => {
-          if (!addr.startsWith('///')) {
-            return '///' + addr.replace(/^\/+/, '');
-          }
-          return addr;
-        });
-        matches.push(...normalized);
-      }
-    });
-    
-    // Remove duplicates and filter valid formats
-    const unique = [...new Set(matches)];
-    const valid = unique.filter(addr => {
-      const parts = addr.replace(/^\/+/, '').split('.');
-      return parts.length === 3 && parts.every(part => part.length >= 2);
-    });
-    
-    console.log('Valid what3words addresses found:', valid);
-    return valid;
   };
 
   return (
