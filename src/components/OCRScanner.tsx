@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { Camera, Upload, Scan, CheckCircle, AlertCircle, Info } from 'lucide-react';
+import { Camera, Upload, Scan, CheckCircle, AlertCircle, Info, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
@@ -20,7 +20,15 @@ const OCRScanner = () => {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [ocrProgress, setOcrProgress] = useState(0);
   const [extractedText, setExtractedText] = useState<string>('');
+  const [selectedLanguage, setSelectedLanguage] = useState<string>('eng');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Language options for OCR
+  const languageOptions = [
+    { code: 'eng', name: 'English' },
+    { code: 'mon', name: 'Mongolian Cyrillic' },
+    { code: 'eng+mon', name: 'English + Mongolian' },
+  ];
 
   // Extract what3words addresses from text using multiple regex patterns
   const extractWhat3Words = (text: string): string[] => {
@@ -76,12 +84,13 @@ const OCRScanner = () => {
            { lat: 51.5074 + (Math.random() - 0.5) * 0.1, lng: -0.1278 + (Math.random() - 0.5) * 0.1 };
   };
 
-  // Real OCR processing function
+  // Updated OCR processing function with language support
   const processOCR = useCallback(async (imageData: string): Promise<ScanResult> => {
     return new Promise((resolve, reject) => {
+      console.log(`Starting OCR with language: ${selectedLanguage}`);
       Tesseract.recognize(
         imageData,
-        'eng',
+        selectedLanguage,
         {
           logger: m => {
             if (m.status === 'recognizing text') {
@@ -111,7 +120,7 @@ const OCRScanner = () => {
         });
       }).catch(reject);
     });
-  }, []);
+  }, [selectedLanguage]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -190,6 +199,29 @@ const OCRScanner = () => {
 
   return (
     <div className="space-y-6">
+      {/* Language Selection */}
+      <Card className="p-4">
+        <div className="flex items-center space-x-3 mb-3">
+          <Globe className="h-5 w-5 text-blue-600" />
+          <h4 className="font-medium text-gray-900">OCR Language</h4>
+        </div>
+        <select
+          value={selectedLanguage}
+          onChange={(e) => setSelectedLanguage(e.target.value)}
+          className="w-full border rounded px-3 py-2 text-sm"
+          disabled={isScanning}
+        >
+          {languageOptions.map(lang => (
+            <option key={lang.code} value={lang.code}>
+              {lang.name}
+            </option>
+          ))}
+        </select>
+        <p className="text-xs text-gray-500 mt-2">
+          Select the language for text recognition. Mongolian Cyrillic is supported for what3words addresses.
+        </p>
+      </Card>
+
       {/* Upload Controls */}
       <div className="grid grid-cols-2 gap-4">
         <Button
@@ -314,6 +346,7 @@ const OCRScanner = () => {
             <p className="font-medium mb-1">OCR Tips for Better Recognition</p>
             <ul className="space-y-1 text-blue-700">
               <li>• Ensure what3words addresses are in format: ///word.word.word</li>
+              <li>• Select appropriate language: English, Mongolian Cyrillic, or both</li>
               <li>• Use good lighting and avoid blur or shadows</li>
               <li>• Make sure text is clearly visible and not too small</li>
               <li>• Avoid handwritten text - printed text works better</li>
