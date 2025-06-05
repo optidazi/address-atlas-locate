@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { Camera, Upload, Scan, CheckCircle, AlertCircle, Info, Globe } from 'lucide-react';
+import { Camera, Upload, Scan, CheckCircle, AlertCircle, Info, Globe, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
@@ -181,6 +181,17 @@ const OCRScanner = () => {
     }, 1500);
   };
 
+  const handleClearImage = () => {
+    setPreviewImage(null);
+    setScanResult(null);
+    setExtractedText('');
+    setOcrProgress(0);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    toast.success(t('toast.imageCleared') || 'Image cleared');
+  };
+
   const addToDeliveryList = () => {
     if (scanResult) {
       window.dispatchEvent(new CustomEvent('addDelivery', {
@@ -225,7 +236,7 @@ const OCRScanner = () => {
       </Card>
 
       {/* Upload Controls */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         <Button
           onClick={() => fileInputRef.current?.click()}
           className="flex items-center justify-center space-x-2 h-12"
@@ -242,6 +253,15 @@ const OCRScanner = () => {
         >
           <Camera className="h-4 w-4" />
           <span>{t('ocr.useCamera')}</span>
+        </Button>
+        <Button
+          onClick={handleClearImage}
+          className="flex items-center justify-center space-x-2 h-12"
+          variant="outline"
+          disabled={isScanning || (!previewImage && !scanResult)}
+        >
+          <X className="h-4 w-4" />
+          <span>Clear</span>
         </Button>
       </div>
 
